@@ -1,5 +1,5 @@
 # ---- Base ----
-FROM node:20-alpine AS base
+FROM node:24-alpine AS base
 WORKDIR /app
 
 # ---- Dependencies ----
@@ -25,7 +25,7 @@ COPY server/package*.json ./server/
 RUN npm install --omit=dev
 
 # ---- Runner ----
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV API_PORT=3001
