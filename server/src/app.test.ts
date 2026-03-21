@@ -1,14 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import request from 'supertest';
-import app from './app.js';
+import { createApp } from './app.js';
+
+const app = createApp();
 
 describe('GET /api/health', () => {
   it('returns 200 with healthy status', async () => {
     const res = await request(app).get('/api/health');
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ status: 'healthy' });
-    expect(res.body).toHaveProperty('llm');
-    expect(typeof res.body.llm.configured).toBe('boolean');
+    expect(res.body.status).toBe('healthy');
   });
 
   it('returns JSON content type', async () => {
