@@ -1,5 +1,8 @@
-import { getModelName, getRoleBaseUrl, getRoleAuthHeaders, isProviderConfigured } from './llm/config.js';
+import { getModelName } from './llm/config.js';
+import { getLlmApiBaseUrl, getLlmAuthHeaders, parseLlmApiUrl, resolveLlmUrl } from './llmConfig.js';
+import { extractJsonObject } from './llmExtractJson.js';
 
+const DEFAULT_MODEL = 'llama3.2';
 const INFER_TIMEOUT_MS = Math.min(
   Math.max(Number(process.env.LLM_INFER_TIMEOUT_MS) || 120_000, 5_000),
   300_000,
@@ -42,33 +45,11 @@ function isInferredLanguage(x: string): x is InferredLanguage {
   return (LANGUAGES as readonly string[]).includes(x);
 }
 
-/** Qwen / DeepSeek-style reasoning blocks break JSON.parse if left in the assistant string. */
-export function stripReasoningTags(text: string): string {
-  return text
-    .replace(/<think\b[^>]*>[\s\S]*?<\/think>/gi, '')
-    .trim();
-}
-
-function extractJsonObject(text: string): Record<string, unknown> {
-  const t = stripReasoningTags(text);
-  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const inner = fence ? fence[1].trim() : t;
-  const start = inner.indexOf('{');
-  const end = inner.lastIndexOf('}');
-  if (start === -1 || end === -1 || end <= start) {
-    throw new Error('No JSON object in LLM response');
-  }
-  const jsonStr = inner.slice(start, end + 1);
-  const parsed: unknown = JSON.parse(jsonStr);
-  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-    return parsed as Record<string, unknown>;
-  }
-  throw new Error('LLM returned non-object JSON');
-}
+export { stripReasoningTags } from './llmExtractJson.js';
 
 function strField(raw: Record<string, unknown>, key: string): string | undefined {
   const v = raw[key];
-  return typeof v === 'string' && v.trim() ? v : undefined;
+  return typeof v === 'string' && v.trim() ? v.trim() : undefined;
 }
 
 function normalizeResult(raw: Record<string, unknown>): InferComponentResult {
@@ -89,24 +70,33 @@ function normalizeResult(raw: Record<string, unknown>): InferComponentResult {
   };
 }
 
+function inferModelId(): string {
+  const explicit = process.env.LLM_MODEL?.trim();
+  if (explicit) return explicit;
+  if (parseLlmApiUrl(process.env.LLM_API_URL)) return DEFAULT_MODEL;
+  return getModelName('inference');
+}
+
+/** True when raw-fetch LLM base URL is available (LLM_API_URL or inference role / cloudfest). */
+export function isInferenceConfigured(): boolean {
+  return getLlmApiBaseUrl() !== null;
+}
+
 /**
  * Calls the configured OpenAI-compatible chat API to split prose vs code and infer language + pattern.
  */
-export function isInferenceConfigured(): boolean {
-  return getRoleBaseUrl('inference') !== null;
-}
-
 export async function inferComponentFromPaste(raw: string): Promise<InferComponentResult> {
-  const baseUrl = getRoleBaseUrl('inference');
-  if (!baseUrl) {
-    throw new Error('Inference LLM is not configured — set INFERENCE_LLM_PROVIDER / CLOUDFEST_HOST');
+  const url = resolveLlmUrl('v1/chat/completions');
+  if (!url) {
+    throw new Error('Inference LLM is not configured — set LLM_API_URL or INFERENCE_LLM_PROVIDER_* / CLOUDFEST_HOST');
   }
 
-  const chatUrl = baseUrl.replace(/\/+$/, '') + '/chat/completions';
-  const model = getModelName('inference');
+  const model = inferModelId();
   const body = {
     model,
     temperature: 0.1,
+    /** Streaming responses can hang `res.json()` on the server. */
+    stream: false,
     messages: [
       { role: 'system' as const, content: SYSTEM_PROMPT },
       {
@@ -120,11 +110,11 @@ export async function inferComponentFromPaste(raw: string): Promise<InferCompone
   const timeout = setTimeout(() => controller.abort(), INFER_TIMEOUT_MS);
 
   try {
-    const res = await fetch(chatUrl, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...getRoleAuthHeaders('inference'),
+        ...getLlmAuthHeaders(),
       },
       body: JSON.stringify(body),
       signal: controller.signal,

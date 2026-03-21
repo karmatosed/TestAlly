@@ -75,6 +75,20 @@ export type ManualTestResponse =
   | ManualTestResponseSuccess
   | ManualTestResponseInProgress;
 
+/** Single turn in POST /api/chat-component history (client-held). */
+export interface ChatComponentMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+/** Response from POST /api/chat-component */
+export interface ChatComponentResponse {
+  assistantMessage: string;
+  /** Merged client draft + model updates */
+  draft: Partial<AnalyzeRequest>;
+  readyToAnalyze: boolean;
+}
+
 export interface ErrorResponse {
   error: string;
   message: string;

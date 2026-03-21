@@ -10,7 +10,9 @@ import {
   createManualTestRouter,
   createHealthRouter,
 } from './routes/index.js';
-import { inferComponentFromPaste, isInferenceConfigured } from './lib/llmInferComponent.js';
+import { isLlmConfigured } from './lib/llmConfig.js';
+import { inferComponentFromPaste } from './lib/llmInferComponent.js';
+import { runChatComponentTurn, validateChatComponentBody } from './lib/llmChatComponent.js';
 import { probeLlmConnection } from './lib/llmProbe.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -31,11 +33,11 @@ export function createApp(jobManager?: JobManager): express.Express {
 
   /** Active connectivity check: Ollama /api/tags or OpenAI-compatible GET /v1/models */
   app.get('/api/health/llm', async (_req, res) => {
-    if (!isInferenceConfigured()) {
+    if (!isLlmConfigured()) {
       res.status(503).json({
         ok: false,
         via: 'none',
-        message: 'Inference LLM is not configured',
+        message: 'LLM not configured — set LLM_API_URL or INFERENCE_LLM_PROVIDER_* / CLOUDFEST_HOST',
       });
       return;
     }
@@ -56,10 +58,10 @@ export function createApp(jobManager?: JobManager): express.Express {
       res.status(400).json({ error: 'Bad Request', message: 'raw is required' });
       return;
     }
-    if (!isInferenceConfigured()) {
+    if (!isLlmConfigured()) {
       res.status(503).json({
         error: 'Service Unavailable',
-        message: 'Inference LLM is not configured',
+        message: 'LLM not configured — set LLM_API_URL or INFERENCE_LLM_PROVIDER_* / CLOUDFEST_HOST',
       });
       return;
     }
@@ -69,6 +71,36 @@ export function createApp(jobManager?: JobManager): express.Express {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'LLM request failed';
       console.error('[infer-component]', err);
+      res.status(502).json({ error: 'Bad Gateway', message });
+    }
+  });
+
+  /**
+   * Multi-turn natural language + draft merge for the Chat tab (stateless; client sends full history).
+   */
+  app.post('/api/chat-component', async (req, res) => {
+    const parsed = validateChatComponentBody(req.body);
+    if (!parsed) {
+      res.status(400).json({
+        error: 'Bad Request',
+        message:
+          'Expected { messages: [{ role, content }], draft? } with non-empty messages ending in a user turn',
+      });
+      return;
+    }
+    if (!isLlmConfigured()) {
+      res.status(503).json({
+        error: 'Service Unavailable',
+        message: 'LLM not configured — set LLM_API_URL or INFERENCE_LLM_PROVIDER_* / CLOUDFEST_HOST',
+      });
+      return;
+    }
+    try {
+      const result = await runChatComponentTurn(parsed.messages, parsed.draft);
+      res.json(result);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'LLM request failed';
+      console.error('[chat-component]', err);
       res.status(502).json({ error: 'Bad Gateway', message });
     }
   });

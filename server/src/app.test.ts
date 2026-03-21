@@ -17,6 +17,13 @@ describe('GET /api/health', () => {
   });
 });
 
+describe('POST /api/chat-component', () => {
+  it('returns 400 for invalid body', async () => {
+    const res = await request(app).post('/api/chat-component').send({ messages: [] });
+    expect(res.status).toBe(400);
+  });
+});
+
 describe('Express app', () => {
   it('parses JSON request bodies', async () => {
     const res = await request(app)

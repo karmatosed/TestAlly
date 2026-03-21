@@ -23,6 +23,22 @@ export interface InferComponentResponse {
   js?: string;
 }
 
+export interface ChatComponentMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface ChatComponentRequest {
+  messages: ChatComponentMessage[];
+  draft?: Partial<AnalyzeRequest>;
+}
+
+export interface ChatComponentResponse {
+  assistantMessage: string;
+  draft: Partial<AnalyzeRequest>;
+  readyToAnalyze: boolean;
+}
+
 export interface AnalyzeResponse {
   status: 'accepted';
   jobId: string;
