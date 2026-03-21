@@ -33,6 +33,9 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: proxyTarget,
           changeOrigin: true,
+          /** Chat/infer can be slow; avoid proxy closing the socket while the API waits on the LLM. */
+          timeout: 600_000,
+          proxyTimeout: 600_000,
         },
       },
     },

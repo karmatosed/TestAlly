@@ -5,6 +5,7 @@ import { randomBytes } from 'node:crypto';
 import { fileURLToPath } from 'url';
 import { isLlmConfigured } from './lib/llmConfig.js';
 import { inferComponentFromPaste } from './lib/llmInferComponent.js';
+import { runChatComponentTurn, validateChatComponentBody } from './lib/llmChatComponent.js';
 import { probeLlmConnection } from './lib/llmProbe.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -142,6 +143,36 @@ app.post('/api/infer-component', async (req, res) => {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'LLM request failed';
     console.error('[infer-component]', err);
+    res.status(502).json({ error: 'Bad Gateway', message });
+  }
+});
+
+/**
+ * Multi-turn natural language + draft merge for the Chat tab (stateless; client sends full history).
+ */
+app.post('/api/chat-component', async (req, res) => {
+  const parsed = validateChatComponentBody(req.body);
+  if (!parsed) {
+    res.status(400).json({
+      error: 'Bad Request',
+      message:
+        'Expected { messages: [{ role, content }], draft? } with non-empty messages ending in a user turn',
+    });
+    return;
+  }
+  if (!isLlmConfigured()) {
+    res.status(503).json({
+      error: 'Service Unavailable',
+      message: 'LLM not configured (set LLM_API_URL)',
+    });
+    return;
+  }
+  try {
+    const result = await runChatComponentTurn(parsed.messages, parsed.draft);
+    res.json(result);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'LLM request failed';
+    console.error('[chat-component]', err);
     res.status(502).json({ error: 'Bad Gateway', message });
   }
 });

@@ -1,5 +1,7 @@
 # 023 — Third tab: chat-first component capture
 
+**Status (repo):** MVP implemented — third **Chat** tab, `POST /api/chat-component`, `ChatWorkspace`, shared analyze/results flow. Optional follow-ups: streaming, shared `AnalysisResultsPane` refactor, stricter rate limits on the new route.
+
 ## Context
 
 Today the shell exposes two tabs (see `020-frontend-shell.md` and the live `AppShell` pattern):

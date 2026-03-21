@@ -1,13 +1,15 @@
 import { useCallback, useState } from 'react';
+import { ChatWorkspace } from '../pages/ChatWorkspace';
 import { ClassicWorkspace } from '../pages/ClassicWorkspace';
 import { OneInputWorkspace } from '../pages/OneInputWorkspace';
 import styles from './AppShell.module.css';
 
-type MainTab = 'overview' | 'oneInput';
+type MainTab = 'overview' | 'oneInput' | 'chat';
 
 const TABS: { id: MainTab; label: string }[] = [
   { id: 'overview', label: 'Overview' },
   { id: 'oneInput', label: 'One input' },
+  { id: 'chat', label: 'Chat' },
 ];
 
 export function AppShell() {
@@ -84,6 +86,16 @@ export function AppShell() {
           className={styles.tabPanel}
         >
           <OneInputWorkspace />
+        </section>
+
+        <section
+          id="panel-chat"
+          role="tabpanel"
+          aria-labelledby="tab-chat"
+          hidden={tab !== 'chat'}
+          className={styles.tabPanel}
+        >
+          <ChatWorkspace />
         </section>
       </div>
     </div>

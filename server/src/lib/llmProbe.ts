@@ -5,6 +5,18 @@ const PROBE_MS = Math.min(
   60_000,
 );
 
+/** Max time for one HTTP attempt (connect + headers + body). */
+const ATTEMPT_MS = PROBE_MS;
+
+/** Never hang on `res.json()` if headers arrived but body stalls. */
+const BODY_READ_MS = Math.min(Math.max(PROBE_MS, 3_000), 15_000);
+
+/**
+ * Hard ceiling for the whole probe (Ollama try + OpenAI try + body reads).
+ * Ensures GET /api/health/llm always completes (no infinite browser spin).
+ */
+const OUTER_PROBE_MS = Math.min(PROBE_MS * 2 + 12_000, 90_000);
+
 export interface LlmProbeResult {
   ok: boolean;
   /** How we verified reachability */
@@ -15,10 +27,38 @@ export interface LlmProbeResult {
   message?: string;
 }
 
+function readJsonWithTimeout(res: Response, ms: number): Promise<unknown> {
+  return Promise.race([
+    res.json() as Promise<unknown>,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('response body read timed out')), ms),
+    ),
+  ]);
+}
+
 /**
  * Checks TCP/HTTP reachability and basic API shape — does not run a full chat completion.
  */
 export async function probeLlmConnection(): Promise<LlmProbeResult> {
+  return Promise.race([runProbe(), outerTimeoutResult()]);
+}
+
+function outerTimeoutResult(): Promise<LlmProbeResult> {
+  return new Promise((resolve) =>
+    setTimeout(
+      () =>
+        resolve({
+          ok: false,
+          via: 'none',
+          latencyMs: OUTER_PROBE_MS,
+          message: `LLM probe exceeded ${OUTER_PROBE_MS}ms (outer cap). LLM_API_URL may point at an unreachable host/port, or a proxy is hanging.`,
+        }),
+      OUTER_PROBE_MS,
+    ),
+  );
+}
+
+async function runProbe(): Promise<LlmProbeResult> {
   const base = getLlmApiBaseUrl();
   if (!base) {
     return {
@@ -31,47 +71,71 @@ export async function probeLlmConnection(): Promise<LlmProbeResult> {
 
   const started = Date.now();
 
-  const ollama = await tryOllamaTags(base);
-  if (ollama) {
+  try {
+    // Prefer OpenAI-compatible probe first (works for Ollama 0.2+ and matches chat path after resolveLlmUrl fix).
+    const openai = await tryOpenAiModels();
+    if (openai) {
+      return {
+        ok: true,
+        via: 'openai-models',
+        latencyMs: Date.now() - started,
+        models: openai.ids.slice(0, 50),
+        message: `OpenAI-compatible /v1/models reachable (${openai.ids.length} id(s))`,
+      };
+    }
+
+    const ollama = await tryOllamaTags(base);
+    if (ollama) {
+      return {
+        ok: true,
+        via: 'ollama-tags',
+        latencyMs: Date.now() - started,
+        models: ollama.names.slice(0, 50),
+        message: `Ollama native /api/tags reachable (${ollama.names.length} model(s))`,
+      };
+    }
+
     return {
-      ok: true,
-      via: 'ollama-tags',
+      ok: false,
+      via: 'none',
       latencyMs: Date.now() - started,
-      models: ollama.names.slice(0, 50),
-      message: `Ollama reachable (${ollama.names.length} model(s))`,
+      message:
+        'Could not reach /v1/models or Ollama /api/tags. Check LLM_API_URL (use http://host:11434 or http://host:11434/v1 — not both paths), host.docker.internal from Docker, and that Ollama/your gateway is running.',
+    };
+  } catch (e) {
+    return {
+      ok: false,
+      via: 'none',
+      latencyMs: Date.now() - started,
+      message: e instanceof Error ? e.message : 'LLM probe failed',
     };
   }
+}
 
-  const openai = await tryOpenAiModels();
-  if (openai) {
-    return {
-      ok: true,
-      via: 'openai-models',
-      latencyMs: Date.now() - started,
-      models: openai.ids.slice(0, 50),
-      message: `OpenAI-compatible /v1/models reachable (${openai.ids.length} id(s))`,
-    };
+/**
+ * Ollama lists models at /api/tags on the server root, not under .../v1/.
+ * If LLM_API_URL is a subpath proxy (e.g. /llama), tags live under that path.
+ */
+function ollamaTagsProbeUrl(base: URL): URL {
+  const rawPath = base.pathname.replace(/\/$/, '');
+  if (!rawPath || rawPath === '/' || rawPath.endsWith('/v1')) {
+    return new URL('/api/tags', `${base.origin}/`);
   }
-
-  return {
-    ok: false,
-    via: 'none',
-    latencyMs: Date.now() - started,
-    message:
-      'Could not reach Ollama (/api/tags) or OpenAI-compatible (/v1/models). Check LLM_API_URL, network (e.g. host.docker.internal), and that the server is running.',
-  };
+  return new URL('api/tags', `${base.origin}${rawPath}/`);
 }
 
 async function tryOllamaTags(base: URL): Promise<{ names: string[] } | null> {
   try {
-    const tagsUrl = new URL('/api/tags', `${base.origin}/`);
+    const tagsUrl = ollamaTagsProbeUrl(base);
     const res = await fetch(tagsUrl, {
       method: 'GET',
       headers: { ...getLlmAuthHeaders() },
-      signal: AbortSignal.timeout(PROBE_MS),
+      signal: AbortSignal.timeout(ATTEMPT_MS),
     });
     if (!res.ok) return null;
-    const data = (await res.json()) as { models?: Array<{ name?: string }> };
+    const data = (await readJsonWithTimeout(res, BODY_READ_MS)) as {
+      models?: Array<{ name?: string }>;
+    };
     if (!Array.isArray(data.models)) return null;
     const names = data.models.map((m) => m.name).filter((n): n is string => typeof n === 'string');
     return { names };
@@ -87,10 +151,12 @@ async function tryOpenAiModels(): Promise<{ ids: string[] } | null> {
     const res = await fetch(url, {
       method: 'GET',
       headers: { ...getLlmAuthHeaders() },
-      signal: AbortSignal.timeout(PROBE_MS),
+      signal: AbortSignal.timeout(ATTEMPT_MS),
     });
     if (!res.ok) return null;
-    const data = (await res.json()) as { data?: Array<{ id?: string }> };
+    const data = (await readJsonWithTimeout(res, BODY_READ_MS)) as {
+      data?: Array<{ id?: string }>;
+    };
     if (!Array.isArray(data.data)) return null;
     const ids = data.data.map((m) => m.id).filter((id): id is string => typeof id === 'string');
     return { ids };

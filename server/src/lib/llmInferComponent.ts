@@ -1,4 +1,5 @@
 import { getLlmAuthHeaders, getLlmApiBaseUrl, resolveLlmUrl } from './llmConfig.js';
+import { extractJsonObject } from './llmExtractJson.js';
 
 const DEFAULT_MODEL = 'llama3.2';
 const CHAT_PATH = process.env.LLM_CHAT_PATH?.trim() || 'v1/chat/completions';
@@ -44,29 +45,7 @@ function isInferredLanguage(x: string): x is InferredLanguage {
   return (LANGUAGES as readonly string[]).includes(x);
 }
 
-/** Qwen / DeepSeek-style reasoning blocks break JSON.parse if left in the assistant string. */
-export function stripReasoningTags(text: string): string {
-  return text
-    .replace(/<think\b[^>]*>[\s\S]*?<\/think>/gi, '')
-    .trim();
-}
-
-function extractJsonObject(text: string): Record<string, unknown> {
-  const t = stripReasoningTags(text);
-  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/);
-  const inner = fence ? fence[1].trim() : t;
-  const start = inner.indexOf('{');
-  const end = inner.lastIndexOf('}');
-  if (start === -1 || end === -1 || end <= start) {
-    throw new Error('No JSON object in LLM response');
-  }
-  const jsonStr = inner.slice(start, end + 1);
-  const parsed: unknown = JSON.parse(jsonStr);
-  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-    return parsed as Record<string, unknown>;
-  }
-  throw new Error('LLM returned non-object JSON');
-}
+export { stripReasoningTags } from './llmExtractJson.js';
 
 function strField(raw: Record<string, unknown>, key: string): string | undefined {
   const v = raw[key];
@@ -109,6 +88,8 @@ export async function inferComponentFromPaste(raw: string): Promise<InferCompone
   const body = {
     model,
     temperature: 0.1,
+    /** See llmChatComponent — streaming responses hang `res.json()` on the server. */
+    stream: false,
     messages: [
       { role: 'system' as const, content: SYSTEM_PROMPT },
       {
