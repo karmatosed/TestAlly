@@ -12,7 +12,9 @@
     "css-tree": "^3.2.1",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "htmlparser2": "^11.0.0"
+    "htmlparser2": "^11.0.0",
+    "uuid": "^13.0.0",
+    "xstate": "^5.28.0"
   },
   "devDependencies": {
     "@types/css-tree": "^2.3.11",
