@@ -77,7 +77,7 @@ export function createAnalysisTools(input: AnalysisInput) {
 
   const cssAriaTool = tool(
     async () => {
-      const cssResult = input.css ? analyzeCss(input.css) : { flags: [], hasVisibleFocusStyles: false, usesHighContrastMedia: false };
+      const cssResult = input.css ? analyzeCss(input.css) : { flags: [], hasAnimations: false, hasReducedMotionQuery: false };
       const ariaResult = analyzeAria(input.code);
       return JSON.stringify({ css: cssResult, aria: ariaResult });
     },

@@ -41,7 +41,7 @@ describe('walkthrough generation (integration)', () => {
       eslintMessages: [],
       customRuleFlags: [],
       events: { hasClick: true, hasKeyDown: false },
-      css: { flags: [], hasVisibleFocusStyles: false },
+      css: { flags: [], hasAnimations: false, hasReducedMotionQuery: false },
       aria: { roles: ['button'], attributes: ['aria-label'] },
     });
 
