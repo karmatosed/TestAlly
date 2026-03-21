@@ -51,7 +51,7 @@ function outerTimeoutResult(): Promise<LlmProbeResult> {
           ok: false,
           via: 'none',
           latencyMs: OUTER_PROBE_MS,
-          message: `LLM probe exceeded ${OUTER_PROBE_MS}ms (outer cap). LLM_API_URL may point at an unreachable host/port, or a proxy is hanging.`,
+          message: `LLM probe exceeded ${OUTER_PROBE_MS}ms (outer cap). Check LLM_API_URL or INFERENCE_LLM_PROVIDER_HOST, firewalls, and that the gateway is running.`,
         }),
       OUTER_PROBE_MS,
     ),
@@ -65,14 +65,13 @@ async function runProbe(): Promise<LlmProbeResult> {
       ok: false,
       via: 'none',
       latencyMs: 0,
-      message: 'LLM_API_URL is not set',
+      message: 'LLM not configured — set LLM_API_URL or INFERENCE_LLM_PROVIDER_* / CLOUDFEST_HOST',
     };
   }
 
   const started = Date.now();
 
   try {
-    // Prefer OpenAI-compatible probe first (works for Ollama 0.2+ and matches chat path after resolveLlmUrl fix).
     const openai = await tryOpenAiModels();
     if (openai) {
       return {
@@ -100,7 +99,7 @@ async function runProbe(): Promise<LlmProbeResult> {
       via: 'none',
       latencyMs: Date.now() - started,
       message:
-        'Could not reach /v1/models or Ollama /api/tags. Check LLM_API_URL (use http://host:11434 or http://host:11434/v1 — not both paths), host.docker.internal from Docker, and that Ollama/your gateway is running.',
+        'Could not reach /v1/models or Ollama /api/tags. Check LLM_API_URL (e.g. http://host:11434 or …/v1), INFERENCE_LLM_PROVIDER_HOST, Docker networking, and that the server is running.',
     };
   } catch (e) {
     return {
@@ -114,7 +113,7 @@ async function runProbe(): Promise<LlmProbeResult> {
 
 /**
  * Ollama lists models at /api/tags on the server root, not under .../v1/.
- * If LLM_API_URL is a subpath proxy (e.g. /llama), tags live under that path.
+ * If the base URL is a subpath proxy (e.g. /llama), tags live under that path.
  */
 function ollamaTagsProbeUrl(base: URL): URL {
   const rawPath = base.pathname.replace(/\/$/, '');

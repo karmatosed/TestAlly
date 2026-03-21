@@ -1,5 +1,11 @@
 import type { AnalyzeRequest, ChatComponentMessage, ChatComponentResponse } from '../types/api.js';
-import { getLlmAuthHeaders, getLlmApiBaseUrl, resolveLlmUrl } from './llmConfig.js';
+import { getModelName } from './llm/config.js';
+import {
+  getLlmAuthHeaders,
+  getLlmApiBaseUrl,
+  parseLlmApiUrl,
+  resolveLlmUrl,
+} from './llmConfig.js';
 import { extractJsonObject } from './llmExtractJson.js';
 
 const DEFAULT_MODEL = 'llama3.2';
@@ -217,7 +223,7 @@ export async function runChatComponentTurn(
 ): Promise<ChatComponentResponse> {
   const base = getLlmApiBaseUrl();
   if (!base) {
-    throw new Error('LLM_API_URL is not set');
+    throw new Error('LLM not configured — set LLM_API_URL or INFERENCE_LLM_PROVIDER_* / CLOUDFEST_HOST');
   }
 
   const url = resolveLlmUrl(CHAT_PATH);
@@ -225,7 +231,9 @@ export async function runChatComponentTurn(
     throw new Error('Could not resolve LLM chat URL');
   }
 
-  const model = process.env.LLM_MODEL?.trim() || DEFAULT_MODEL;
+  const model =
+    process.env.LLM_MODEL?.trim() ||
+    (parseLlmApiUrl(process.env.LLM_API_URL) ? DEFAULT_MODEL : getModelName('inference'));
   const systemContent = `${CHAT_SYSTEM}\n\nClient draft snapshot (JSON, may be empty): ${JSON.stringify(clientDraft ?? {})}`;
 
   const openAiMessages = [

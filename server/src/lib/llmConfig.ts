@@ -1,3 +1,5 @@
+import { getRoleAuthHeaders, getRoleBaseUrl } from './llm/config.js';
+
 /**
  * LLM endpoint from the environment (OpenAI-compatible base URL).
  * LLM_API_URL may be `host:port` or a full URL; a scheme is added if missing.
@@ -12,25 +14,36 @@ export function parseLlmApiUrl(raw: string | undefined): URL | null {
   }
 }
 
+/**
+ * Base URL for raw-fetch LLM features (infer, chat, health/llm).
+ * Prefers `LLM_API_URL` when set; otherwise uses the inference role from per-role config (`INFERENCE_*` / cloudfest).
+ */
 export function getLlmApiBaseUrl(): URL | null {
-  return parseLlmApiUrl(process.env.LLM_API_URL);
+  const fromEnv = parseLlmApiUrl(process.env.LLM_API_URL);
+  if (fromEnv) return fromEnv;
+  const roleBase = getRoleBaseUrl('inference');
+  if (!roleBase?.trim()) return null;
+  try {
+    return new URL(roleBase);
+  } catch {
+    return null;
+  }
 }
 
 export function isLlmConfigured(): boolean {
   return getLlmApiBaseUrl() !== null;
 }
 
-/** Optional bearer token for gateways that expect Authorization (e.g. LLM_TOKEN in Docker). */
+/** Bearer from LLM_TOKEN, or inference role key (per-role / OpenAI / Anthropic env). */
 export function getLlmAuthHeaders(): Record<string, string> {
   const token = process.env.LLM_TOKEN?.trim();
-  if (!token) return {};
-  return { Authorization: `Bearer ${token}` };
+  if (token) return { Authorization: `Bearer ${token}` };
+  return getRoleAuthHeaders('inference');
 }
 
 /**
- * Resolve an OpenAI-style path (e.g. `v1/chat/completions`, `v1/models`) against LLM_API_URL.
- * If the base URL already ends with `/v1` (common for OpenAI and Ollama examples), the path’s
- * leading `v1/` is not duplicated — avoids `.../v1/v1/models` which breaks health + chat.
+ * Resolve an OpenAI-style path (e.g. `v1/chat/completions`, `v1/models`) against the active base URL.
+ * If the base URL already ends with `/v1`, the path’s leading `v1/` is not duplicated.
  */
 export function resolveLlmUrl(path: string): URL | null {
   const base = getLlmApiBaseUrl();

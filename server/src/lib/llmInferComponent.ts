@@ -1,8 +1,8 @@
-import { getLlmAuthHeaders, getLlmApiBaseUrl, resolveLlmUrl } from './llmConfig.js';
+import { getModelName } from './llm/config.js';
+import { getLlmApiBaseUrl, getLlmAuthHeaders, parseLlmApiUrl, resolveLlmUrl } from './llmConfig.js';
 import { extractJsonObject } from './llmExtractJson.js';
 
 const DEFAULT_MODEL = 'llama3.2';
-const CHAT_PATH = process.env.LLM_CHAT_PATH?.trim() || 'v1/chat/completions';
 const INFER_TIMEOUT_MS = Math.min(
   Math.max(Number(process.env.LLM_INFER_TIMEOUT_MS) || 120_000, 5_000),
   300_000,
@@ -49,7 +49,7 @@ export { stripReasoningTags } from './llmExtractJson.js';
 
 function strField(raw: Record<string, unknown>, key: string): string | undefined {
   const v = raw[key];
-  return typeof v === 'string' && v.trim() ? v : undefined;
+  return typeof v === 'string' && v.trim() ? v.trim() : undefined;
 }
 
 function normalizeResult(raw: Record<string, unknown>): InferComponentResult {
@@ -70,25 +70,32 @@ function normalizeResult(raw: Record<string, unknown>): InferComponentResult {
   };
 }
 
+function inferModelId(): string {
+  const explicit = process.env.LLM_MODEL?.trim();
+  if (explicit) return explicit;
+  if (parseLlmApiUrl(process.env.LLM_API_URL)) return DEFAULT_MODEL;
+  return getModelName('inference');
+}
+
+/** True when raw-fetch LLM base URL is available (LLM_API_URL or inference role / cloudfest). */
+export function isInferenceConfigured(): boolean {
+  return getLlmApiBaseUrl() !== null;
+}
+
 /**
  * Calls the configured OpenAI-compatible chat API to split prose vs code and infer language + pattern.
  */
 export async function inferComponentFromPaste(raw: string): Promise<InferComponentResult> {
-  const base = getLlmApiBaseUrl();
-  if (!base) {
-    throw new Error('LLM_API_URL is not set');
-  }
-
-  const url = resolveLlmUrl(CHAT_PATH);
+  const url = resolveLlmUrl('v1/chat/completions');
   if (!url) {
-    throw new Error('Could not resolve LLM chat URL');
+    throw new Error('Inference LLM is not configured — set LLM_API_URL or INFERENCE_LLM_PROVIDER_* / CLOUDFEST_HOST');
   }
 
-  const model = process.env.LLM_MODEL?.trim() || DEFAULT_MODEL;
+  const model = inferModelId();
   const body = {
     model,
     temperature: 0.1,
-    /** See llmChatComponent — streaming responses hang `res.json()` on the server. */
+    /** Streaming responses can hang `res.json()` on the server. */
     stream: false,
     messages: [
       { role: 'system' as const, content: SYSTEM_PROMPT },

@@ -37,7 +37,7 @@ export function createApp(jobManager?: JobManager): express.Express {
       res.status(503).json({
         ok: false,
         via: 'none',
-        message: 'LLM_API_URL is not set',
+        message: 'LLM not configured — set LLM_API_URL or INFERENCE_LLM_PROVIDER_* / CLOUDFEST_HOST',
       });
       return;
     }
@@ -50,7 +50,7 @@ export function createApp(jobManager?: JobManager): express.Express {
   });
 
   /**
-   * LLM-based split + classify for pasted component material (OpenAI-compatible API at LLM_API_URL).
+   * LLM-based split + classify for pasted component material.
    */
   app.post('/api/infer-component', async (req, res) => {
     const raw = typeof req.body?.raw === 'string' ? req.body.raw : '';
@@ -61,7 +61,7 @@ export function createApp(jobManager?: JobManager): express.Express {
     if (!isLlmConfigured()) {
       res.status(503).json({
         error: 'Service Unavailable',
-        message: 'LLM not configured (set LLM_API_URL)',
+        message: 'LLM not configured — set LLM_API_URL or INFERENCE_LLM_PROVIDER_* / CLOUDFEST_HOST',
       });
       return;
     }
@@ -91,7 +91,7 @@ export function createApp(jobManager?: JobManager): express.Express {
     if (!isLlmConfigured()) {
       res.status(503).json({
         error: 'Service Unavailable',
-        message: 'LLM not configured (set LLM_API_URL)',
+        message: 'LLM not configured — set LLM_API_URL or INFERENCE_LLM_PROVIDER_* / CLOUDFEST_HOST',
       });
       return;
     }

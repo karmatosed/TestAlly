@@ -8,10 +8,10 @@ const server = app.listen(PORT, () => {
   console.log(`TestAlly server running on port ${PORT}`);
   const llmBase = getLlmApiBaseUrl();
   if (llmBase) {
-    console.log(`LLM API base URL: ${llmBase.origin}`);
+    console.log(`Raw-fetch LLM base URL: ${llmBase.origin}${llmBase.pathname.replace(/\/$/, '') || ''}`);
   } else {
     console.log(
-      'LLM_API_URL not set — configure LLM_API_URL (and optional LLM_TOKEN) for generation',
+      'Raw-fetch LLM not configured — set LLM_API_URL or INFERENCE_LLM_PROVIDER_* / CLOUDFEST_HOST',
     );
   }
 });
