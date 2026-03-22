@@ -1,5 +1,6 @@
 import { useRef, useEffect } from 'react';
 import { EditorView, basicSetup } from 'codemirror';
+import { scrollPastEnd } from '@codemirror/view';
 import { EditorState } from '@codemirror/state';
 import { html } from '@codemirror/lang-html';
 import { css } from '@codemirror/lang-css';
@@ -100,13 +101,16 @@ export function CodeEditor({
         basicSetup,
         getLanguageExtension(language),
         editorLightTheme(minHeight),
+        scrollPastEnd(),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             onChangeRef.current(update.state.doc.toString());
           }
         }),
         EditorState.tabSize.of(2),
+        // id on the contenteditable so <label htmlFor> and focus match CodeMirror’s real focus target
         EditorView.contentAttributes.of({
+          id,
           'aria-label': label,
           role: 'textbox',
           'aria-multiline': 'true',
@@ -150,11 +154,7 @@ export function CodeEditor({
       <label htmlFor={id} className={styles.label}>
         {label}
       </label>
-      <div
-        ref={containerRef}
-        id={id}
-        className={styles.editor}
-      />
+      <div ref={containerRef} className={styles.editor} />
     </div>
   );
 }
