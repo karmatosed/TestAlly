@@ -6,11 +6,15 @@
 
 .header {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
   flex-wrap: nowrap;
-  gap: 0.5rem;
+  gap: 1rem;
   padding: 0.85rem 1.15rem;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: thin;
   background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
   border-radius: 12px;
   border: 1px solid #e2e8f0;
@@ -44,10 +48,8 @@
   color: #64748b;
   line-height: 1.45;
   white-space: nowrap;
-  max-width: 100%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
+  flex-shrink: 0;
+  text-align: right;
 }
 
 .tabBar {
