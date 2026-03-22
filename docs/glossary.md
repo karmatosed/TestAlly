@@ -80,7 +80,7 @@ Quick reference for **concepts and tools** referenced across TestAlly documentat
 
 ## CORS
 
-**Cross-Origin Resource Sharing** controls which browser origins may call the API or load assets. Express configures allowed origins (often tied to `APP_URL` / deployment host). See [deployment-manual.md](./deployment-manual.md#82-cors-configuration).
+**Cross-Origin Resource Sharing** controls which browser origins may call the API or load assets. In development, same-port requests from localhost and private IPv4 LAN hosts are allowed alongside `APP_URL`; production uses `APP_URL` plus optional `CORS_ALLOWED_ORIGINS`. See [deployment-manual.md](./deployment-manual.md#82-cors-configuration).
 
 ---
 

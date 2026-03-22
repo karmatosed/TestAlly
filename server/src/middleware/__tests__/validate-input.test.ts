@@ -19,13 +19,15 @@ const mockReqResNext = (body: unknown) => {
     body,
   } as unknown as Request;
 
-  const res: any = {};
-  res.status = vi.fn().mockReturnValue(res);
-  res.json = vi.fn();
+  const res = {
+    status: vi.fn(),
+    json: vi.fn(),
+  };
+  res.status.mockReturnValue(res);
 
   const next = vi.fn();
 
-  return { req, res: res as Response, next };
+  return { req, res: res as unknown as Response, next };
 };
 
 describe("validateAnalyzeInput", () => {
