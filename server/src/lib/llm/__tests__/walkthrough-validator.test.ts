@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   VALIDATION_SYSTEM_PROMPT,
   VALIDATION_USER_PROMPT,

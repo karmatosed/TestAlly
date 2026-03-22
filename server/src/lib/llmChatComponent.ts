@@ -83,12 +83,13 @@ The visible chat line MUST be in the string field "assistantMessage". Do not ans
 You MUST include "readyToAnalyze" as a JSON boolean (true or false) on every response — never omit it or use null.
 
 Rules:
-- assistantMessage: concise; ask a brief clarifying question if you still need the main component source or language.
-- draft.language: best guess; default html if unsure.
-- draft.code: full component SOURCE to analyze when the user has provided it; otherwise "".
-- draft.description: 1–3 sentences of testing context from the conversation.
-- draft.css / draft.js: optional companion assets if clearly separated in the chat.
-- readyToAnalyze: true only when draft.code is non-empty and ready for static accessibility checks.
+- When the user (or the client draft snapshot) already includes substantive component SOURCE, you MUST infer draft.description yourself from that source: what UI pattern it is, main interactions, and what accessibility testers should check. Do not ask the user for "purpose", "how it is used in the app", or "more context"—derive testing context from the code and visible structure. You may state your inference briefly in assistantMessage (e.g. "Treating this as a dismissible banner; description inferred from the code.").
+- Ask a clarifying question ONLY if component source is missing, too fragmented to analyze, or the primary language truly cannot be determined.
+- draft.language: best guess from the source; prefer tsx when TypeScript React syntax/hooks are present; default html if unsure.
+- draft.code: full component SOURCE to analyze when provided in the chat or non-empty in the client draft snapshot; preserve the user's code; do not replace with placeholders.
+- draft.description: 1–3 sentences; when source exists, inferred from code (and conversation only for disambiguation). No invented brand/product backstory—stick to what the implementation implies.
+- draft.css / draft.js: optional companion assets if clearly separated in the chat or snapshot.
+- readyToAnalyze: true when draft.code is non-empty and contains real markup/component logic suitable for static accessibility checks (not just a greeting or question).
 
 Escape quotes properly inside JSON strings.`;
 

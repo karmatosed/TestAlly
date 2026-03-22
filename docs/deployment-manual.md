@@ -352,6 +352,7 @@ pm2 save
 | `ANTHROPIC_API_KEY` | No* | - | API key for Anthropic models |
 | `OPENAI_API_KEY` | No* | - | API key for OpenAI models |
 | `APP_URL` | Yes | - | Public URL of the application |
+| `CORS_ALLOWED_ORIGINS` | No | - | Comma-separated extra browser origins (e.g. LAN dev UI URLs) |
 | `API_PORT` | No | `3001` | Port for the Express server |
 | `NODE_ENV` | No | `development` | `development`, `production`, or `test` |
 | `RATE_LIMIT_ANALYZE_MAX` | No | `20` | Max requests per window per IP for `POST /api/analyze` |
@@ -432,24 +433,7 @@ export default defineConfig({
 
 CORS is configured in Express middleware:
 
-```ts
-// server/src/middleware/cors.ts
-import cors from 'cors';
-
-const allowedOrigins = [process.env.APP_URL];
-
-export const corsMiddleware = cors({
-  origin(origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type'],
-});
-```
+Allowed origins are the **origin** of `APP_URL` plus any entries in **`CORS_ALLOWED_ORIGINS`** (comma-separated). In **non-production**, the same **port** as `APP_URL` (or **`DEV_CLIENT_PORT`**) is also accepted from `localhost`, `127.0.0.1`, and private IPv4 LAN addresses (10/8, 172.16–31, 192.168/16). See `server/src/middleware/cors.ts` and [configuration.md](./configuration.md).
 
 ---
 

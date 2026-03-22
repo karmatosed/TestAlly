@@ -4,6 +4,7 @@
 
 - **Run both processes:** `npm run dev` starts Vite and Express. If only Vite runs, `/api` returns 502 or connection errors.
 - **Matching ports:** Vite reads `API_PORT` from the repo-root `.env` for the proxy target. Express must listen on that same port (default `3001`).
+- **CORS / LAN or WSL:** In **development**, the API allows the same **port** as `APP_URL` (or `DEV_CLIENT_PORT`) for `localhost`, `127.0.0.1`, and **private IPv4** (10.x, 172.16–31.x, 192.168.x) so `http://<lan-ip>:5173` works with default `APP_URL=http://localhost:5173`. If you still see CORS errors (different port, HTTPS, or hostname), set **`CORS_ALLOWED_ORIGINS`** in `.env` or align **`APP_URL`** / **`DEV_CLIENT_PORT`**. See [configuration.md](./configuration.md).
 
 ## `EADDRINUSE` on the API port
 

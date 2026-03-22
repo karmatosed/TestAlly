@@ -28,7 +28,8 @@ Provider API keys in `.env.example` (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`) supp
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `APP_URL` | — | Documented canonical UI URL |
+| `APP_URL` | — | Canonical UI URL; origin is allowed for CORS |
+| `CORS_ALLOWED_ORIGINS` | — | Optional comma-separated extra origins when dev auto-allow (same port + private IP) is not enough |
 | `API_PORT` | `3001` | Express listen port; Vite proxy target |
 | `DEV_CLIENT_PORT` | `5173` | Vite dev port |
 | `NODE_ENV` | `development` | Enables production static serving + SPA fallback when `production` |
