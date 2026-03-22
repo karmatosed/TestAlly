@@ -7,7 +7,18 @@ import { css } from '@codemirror/lang-css';
 import { javascript } from '@codemirror/lang-javascript';
 import styles from './CodeEditor.module.css';
 
-/** Light chrome aligned with workspace panels (OneInputWorkspace, etc.). */
+/**
+ * CodeMirror 6 wrapper — kept for reuse (e.g. optional rich editor later), **not** wired into main forms.
+ *
+ * **Not** an accessible substitute for a native `<textarea>`: it uses `contenteditable`, so HTML
+ * `label for=` does not target a labelable control, browser autofill differs, and AT behavior is not
+ * equivalent to standard form fields. Product forms should use `<textarea>` (see workspace pages).
+ */
+
+const editorFontFamily =
+  'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace';
+
+/** Light chrome for the CodeMirror shell (unused in main app forms — see module comment). */
 function editorLightTheme(minHeight: string) {
   return EditorView.theme(
     {
@@ -15,21 +26,35 @@ function editorLightTheme(minHeight: string) {
         minHeight,
         backgroundColor: '#fafbfc',
         color: '#1f2937',
+        fontFamily: editorFontFamily,
       },
       '.cm-scroller': {
         minHeight,
         backgroundColor: '#fafbfc',
+        fontFamily: editorFontFamily,
       },
       '.cm-content': {
         caretColor: '#4361ee',
+        fontFamily: editorFontFamily,
       },
+      // Do not set ::selection here. basicSetup’s drawSelection() uses Prec.highest styles to hide
+      // the native range on lines and (when focused) restore system Highlight — a broad transparent
+      // ::selection on .cm-content was overriding that and hiding the real selection entirely.
       '.cm-cursor, .cm-dropCursor': {
         borderLeftColor: '#4361ee',
       },
-      '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection':
-        {
-          backgroundColor: '#d8e0fe !important',
-        },
+      // drawSelection paints behind .cm-content (z-index -1). Opaque .cm-activeLine was hiding the
+      // selection on the current line — keep active line tint but let the layer show through.
+      // Use `background` (shorthand) so these win over CM baseTheme on .cm-selectionBackground.
+      '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground': {
+        background: 'rgba(37, 99, 235, 0.5)',
+      },
+      '.cm-selectionBackground': {
+        background: 'rgba(107, 114, 128, 0.35)',
+      },
+      '.cm-selectionMatch': {
+        backgroundColor: 'rgba(245, 158, 11, 0.22)',
+      },
       '.cm-gutters': {
         backgroundColor: '#f3f4f6',
         color: '#9ca3af',
@@ -40,7 +65,7 @@ function editorLightTheme(minHeight: string) {
         backgroundColor: '#eceff3',
       },
       '.cm-activeLine': {
-        backgroundColor: '#f0f4ff',
+        backgroundColor: 'rgba(240, 244, 255, 0.45)',
       },
       '.cm-lineNumbers .cm-gutterElement': {
         padding: '0 0.5rem 0 0.35rem',
@@ -50,6 +75,7 @@ function editorLightTheme(minHeight: string) {
   );
 }
 
+/** Props for the non-accessible CodeMirror wrapper — prefer `<textarea>` in product UI. */
 export interface CodeEditorProps {
   value: string;
   onChange: (value: string) => void;
@@ -75,6 +101,7 @@ function getLanguageExtension(lang: CodeEditorProps['language']) {
   }
 }
 
+/** Rich editor (CodeMirror). Not equivalent to a native field for accessibility — see module comment. */
 export function CodeEditor({
   value,
   onChange,
