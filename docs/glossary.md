@@ -81,3 +81,13 @@ A quick reference guide to the key tools and concepts used in TestAlly's technic
 ## Zod
 
 **[Zod](https://zod.dev/)** is a TypeScript-first schema declaration and validation library. It allows you to create schemas that automatically infer static TypeScript types, providing runtime validation with compile-time type safety.
+
+---
+
+## Related documentation
+
+- [Documentation index](./README.md) — all top-level guides
+- [Architecture overview](./architecture-overview.md) — system map
+- [Configuration](./configuration.md) — environment variables
+- [API contracts](./api-contracts.md) — `/api` JSON shapes
+- [Troubleshooting](./troubleshooting.md) — common dev issues

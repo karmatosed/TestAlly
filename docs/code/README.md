@@ -1,6 +1,6 @@
 # Code reference (from source)
 
-Short-lived, code-derived notes. **Update these when you change routes or major UI entry points.** For product and architecture narrative, see sibling files under `docs/` (e.g. `technical-specification.md`, `planning/`).
+Short-lived, code-derived notes. **Update these when you change routes or major UI entry points.** For the full doc set, see [../README.md](../README.md). For narrative specs, see `technical-specification.md` and `planning/` under `docs/`.
 
 | File | Scope |
 |------|--------|
